@@ -1,0 +1,398 @@
+/****************************************************************************************
+Avaiable functions for usage in the uiController object
+================================================================
+uiController.bubbleTranslate(x,y, id)
+    This function will translate the bubble from the middle of the screen.
+    The center of the screen is considered (0,0).
+
+    Inputs:
+        x,y
+        Translates the bubble x px right and y px up. Negative values are accepted
+        and translate the bubble in the opposite direction.
+
+        id
+        ID of bubble that needs to be moved
+
+uiController.bodyDimensions()
+    Returns the width and height of the body (without the toolbar)
+
+    Return:
+        Returns an object with the following fields
+        {
+            width:      [Returns the width of the body],
+            height:     [Returns the width of the body]
+        }
+
+ID of HTML elements that are of interest
+==============================================================
+dark-bubble = document.getElementById(#dark-bubble);
+   // ID of the dark green bubble
+
+
+pale-bubble = document.getElementById(#pale-bubble);
+   // ID of the pale green bubble
+
+*/
+//messageArea = document.getElementById("message-area");
+   // ID of text area at the bottom of the screen, just on top on the "Feeze" button
+/*
+
+freeze-button = document.getElementById(#freeze-button);
+   // ID of the "Freeze" button
+****************************************************************************************/
+//SpiritLevelProcessor;
+    var savedXPos=0,
+        savedYPos=0;
+	// These values control the position of the pale-bubble
+    var degPerScreen = 120;
+	// This variable controls the sensitivity of the bubbles
+
+function SpiritLevelProcessor()
+{
+    var radtodeg = 180/Math.PI;
+	// This variable is used to convert radian values to degrees
+	var bufferX = [];
+	var bufferY = [];
+    var bufferZ = [];
+    var bufferAngle=[];
+	// "bufferX" and "bufferY" will the contain the most recent "n" values of pitch and roll. They are intialised as empty lists
+	var flag = 0;
+	// This acts an indicator which is used to check whether the freeze button has been activated
+	var xPos;
+	var yPos;
+	// "xPos" and "yPos" control the postion of the dark-bubble on the screen
+    var self = this;
+    
+
+    var uiController = null;
+
+    self.initialise = function(controller)
+    {
+        uiController = controller;
+
+        window.addEventListener("devicemotion", handleMotion);
+    }
+
+    function handleMotion(e)
+    {
+		// sets up accelartion variables in each independednt axis. these get the accelerometer readings from the phone.
+        // size is a variable with two properties, widyth and height. it asks the phone for the width and height of the screen in pixels.
+        // This is used to constrain the bubble to the screen and to set the sensitivity of the screen
+        var gX = e.accelerationIncludingGravity.x;
+        var gY = e.accelerationIncludingGravity.y;
+        var gZ = e.accelerationIncludingGravity.z;
+        var size = uiController.bodyDimensions()
+        
+            gX = movingAverage(bufferX,gX);
+            gY = movingAverage(bufferY,gY);
+            gZ = movingAverage(bufferZ,gZ);
+//            gX = movingMedian(bufferX,gX);
+//            gY = movingMedian(bufferY,gY);
+//            gZ = movingMedian(bufferZ,gZ);
+        /*///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+         ///////////////////////////////////////////////// PITCH AND ROLL////////////////////////////////////////////////////////////
+         
+                                These two lines calculate the pitch and roll using formulas derived in                 
+                                                            Mark Pedleys:
+                                    "Tilt Sensing Using a Three-Axis Accelerometer"
+                                    Document Number AN3461, Published by  Freescale Semiconductor Inc.
+                                    
+                                    Pitch and roll were chosen over a similar approach involving positional correlation
+                                    a change in acceleration directly as pitch and roll calculation allowed for easy 
+                                    editing of angular domain across the screen for any user. Our approach allows for a 
+                                    novice coder to change one variable at the top of the code to allow for investagation 
+                                    of small angles or large angles without the need for any other arithmetic.
+                                    
+        ///////////////////////////////////////////////// PITCH AND ROLL////////////////////////////////////////////////////////////*/
+        
+        
+        var pitch = (Math.atan(-gY / Math.sqrt(Math.pow(gX,2) + Math.pow(gZ,2))) * 180) / Math.PI;
+        var roll = (Math.atan(gX / Math.sqrt(Math.pow(gY,2) + Math.pow(gZ,2))) * 180) / Math.PI;
+		displayAngle(gX,gY,gZ);
+		
+        
+        
+        
+        // These two if/else statements comprise the limiting of the bubble to the phones display. 
+        // They Query the roll and pitch, and if they are outside the domain of the sceen the bubble is constrained to the relevant edge.
+        // This is where the global var degPerScreen comes into play, so the sensitivity can be easily edited.
+		
+        if (Math.abs(roll) < degPerScreen/2){
+            xPos = size.width*(roll/degPerScreen);
+            }
+        else if (roll > degPerScreen/2)
+            xPos = size.width / 2;
+        else if (roll < -degPerScreen/2)
+             xPos = -size.width / 2;
+
+
+		
+		if (Math.abs(pitch) < degPerScreen/2)
+		{
+			yPos = size.height*(pitch/degPerScreen);
+		}
+		else if (pitch > degPerScreen/2)
+		{
+			yPos = size.height / 2;
+		}
+		else if (pitch < -degPerScreen/2)
+		{
+			yPos = -size.height/2;
+		}
+        
+        
+        
+               
+        uiController.bubbleTranslate(xPos,yPos, "dark-bubble");
+		
+	}
+    
+    
+
+    function movingAverage(buffer, newValue)
+    {
+        // This function handles the Moving Average Filter
+
+        // Input:
+        //      buffer
+        //      The buffer in which the function will apply the moving to.
+
+        //      newValue
+        //      This should be the newest value that will be pushed into the buffers
+
+        // Output: filteredValue
+        //      This function should return the result of the moving average filter
+		var n = 10;
+		// The variable "n" determines the size of the buffer which will hence determine the bubble's responsiveness
+		var filteredValue;
+		// The "filteredValue" variable will be returned by the function
+
+		if (buffer.length < n-1)
+		// The above statement checks whether buffer has more than 1 empty space
+		{
+			buffer.push(newValue);
+			// The newest value from the device is pushed onto the buffer
+			filteredValue = newValue;
+			// Untill the buffer is filled up with values from the device the newValue is returned by the function
+		}
+
+
+		else if (buffer.length === n-1)
+		// The above statement checks whether buffer has exactly "n-1" elements
+		{
+			buffer.push(newValue);
+			// The newest value from the device is pushed onto the buffer
+			var sum = 0;
+			// The "sum" variable will contain the sum of the all the values inside buffer. This is intialised as 0
+			for (var i = 0; i < n; i++)
+			{
+				sum += buffer[i];
+			}
+			//The above for loop goes to each item in the buffer and adds its value to the "sum"
+			filteredValue = sum / n;
+			// The "sum" is divided by "n" and hence the "filteredValue" contains the average value of the buffer
+		}
+
+
+		else if (buffer.length > n-1)
+		// The above statement checks whether buffer is full
+		{
+			for (var i = 1; i < buffer.length; i++)
+			{
+				buffer[i-1] = buffer[i];
+			}
+			// The above for loop pushes all the current values of the buffer to the left by one index
+			buffer[buffer.length-1] = newValue;
+			// The newest value from the device is put at the end of the buffer
+			var sum = 0;
+			// The "sum" variable will contain the sum of the all the values inside buffer. This is intialised as 0
+			for (var i = 0; i < n; i++)
+			{
+				sum += buffer[i];
+			}
+			//The above for loop goes to each item in the buffer and adds its value to the "sum"
+			filteredValue = sum / n;
+			// The "sum" is divided by "n" and hence the "filteredValue" contains the average value of the buffer
+		}
+
+
+		return filteredValue;
+		
+		
+		
+    }
+
+    function displayAngle(x,y,z)
+    {
+        // This function will handle the calculation of the angle from the z-axis and
+        // display it on the screen inside a "div" tag with the id of "message-area"
+
+        // Input: x,y,z
+        //      These values should be the filtered values after the Moving Average for
+        //      each of the axes respectively
+
+        var posVar, xVar, yVar;
+
+
+       // This equation gets the angle of the phone from the z axis.
+
+        var angle = (Math.acos(z / Math.sqrt(Math.pow(x,2)+Math.pow(y,2) + Math.pow(z,2))))*radtodeg;
+
+        angle = movingAverage(bufferAngle,angle);
+		
+        
+        
+        // this section finds the absolute distance in pixels of the bubble from the frozen angle
+        xVar = (Math.pow(xPos - savedXPos,2));
+        yVar = (Math.pow(yPos - savedYPos,2));
+        posVar = Math.sqrt(xVar + yVar);
+        
+        
+        document.getElementById("message-area").innerHTML = "The surface angle from the Z Axis is: " + angle.toFixed(2) + "Degrees";
+        
+        
+        // this sectiona changes the text colour if the bubble is within 15 px, or the radius of the black circle.
+        if (posVar <= 15)
+            document.getElementById("message-area").style.color= 'red'
+            else
+            document.getElementById("message-area").style.color= 'black'
+        
+		
+    }
+
+    self.freezeClick = function()
+    {
+        // ADVANCED FUNCTIONALITY
+        // ================================================================
+        // This function will trigger when the "Freeze" button is pressed
+			// The ID of the button is "freeze-button"
+		flag++    
+		// The "flag" variable is incremented every time the freeze button is clicked
+		if (flag % 2 !== 0)
+		// This checks is the "flag" is an even number and hence whether the freeze-button is activated
+			{
+				uiController.bubbleTranslate(xPos,yPos, "pale-bubble");
+				savedXPos = xPos;
+				savedYPos = yPos;
+				// If the freeze-button is activated the pale-bubble is moved to the most recent position of the dark-bubble
+			}
+			else{
+				uiController.bubbleTranslate(0,0,"pale-bubble")
+				savedXPos = 0;
+				savedYPos = 0;
+				// If the freeze-button is deactivated the pale-bubble stays in the center
+			}
+    }
+
+    function movingMedian(buffer, newValue)
+    {
+      // ADVANCED FUNCTIONALITY
+      // =================================================================
+      // This function handles the Moving Median Filter
+      // Input:
+      //      buffer
+      //      The buffer in which the function will apply the moving to.
+
+      //      newValue
+      //      This should be the newest value that will be pushed into the buffer
+
+      // Output: filteredValue
+      //      This function should return the result of the moving average filter
+		var n = 10;
+		// The variable "n" determines the size of the buffer which will hence determine the bubble's responsiveness
+		var filteredValue;
+		// The "filteredValue" variable will be returned by the function
+
+		if (buffer.length < n-1)
+		// The above statement checks whether buffer has more than 1 empty space
+		{
+			buffer.push(newValue);
+			// The newest value from the device is pushed onto the buffer
+			filteredValue = newValue;
+			// Untill the buffer is filled up with values from the device the newValue is returned by the function
+		}
+
+		else if (buffer.length === n-1)
+		// The above statement checks whether buffer has exactly "n-1" elements
+		{
+			buffer.push(newValue);
+			// The newest value from the device is pushed onto the buffer
+			var buffer_to_be_sorted = buffer.slice();
+			filteredValue = median(buffer_to_be_sorted);
+			// A duplicate of the buffer is created and the median is calculated from this duplicate using the user-defined median function
+		}
+
+
+		else if (buffer.length > n-1)
+		// The above statement checks whether buffer is full
+		{
+			for (var i = 1; i < buffer.length; i++)
+			{
+				buffer[i-1] = buffer[i];
+			}
+			// The above for loop pushes all the current values of the buffer to the left by one index
+			buffer[buffer.length-1] = newValue;
+			// The newest value from the device is put at the end of the buffer
+			var buffer_to_be_sorted = buffer.slice();
+			filteredValue = median(buffer_to_be_sorted);
+			// A duplicate of the buffer is created and the median is calculated from this duplicate using the user-defined median function
+		}
+
+
+		return filteredValue;
+    }
+	function median(values) {
+		// This function is used to calculate the median from an array of real numbers
+		// Input: an array of real numbers
+		// Output: The median calculated from the array
+
+		values = selectionSort(values);
+		// The values array is sorted by the user-defined function selectionSort
+
+		var middle = Math.floor(values.length/2);
+		
+		if(values.length % 2)
+			return values[middle]; // return the array if it just have even value
+		else
+			return (values[middle-1] + values[middle]) / 2.0;// return the array if it just have odd number, so it take the ave ones
+	}
+	function getMin(array)
+	{
+		// This function is used to find the smallest number from an array of real number
+		// Input: An array of real numbers
+		// Output: The index of the smallest number in the array
+		var minIndex = 0;
+		// At first the first number in the list is considered to be with minimum
+		for (var i = 1; i < array.length; i++)
+		{
+			if (array[minIndex] > array[i])
+			{
+				minIndex = i;
+			}
+		}
+		// The above for loop goes through the array and checks whether an item is smaller than the current minimum value
+		// If a smaller value is found the "minIndex" variable is changed to the current index
+		return minIndex;
+	}
+	function selectionSort(array1)
+	{
+		// This function sorts an array of real numbers using selection sort
+		// Input: An array of real numbers
+		// Output: An sorted array of real numbers
+		var end = array1.length-1;
+		// This variable contains the index of the last item in the array
+		for (var i = 0; i < array1.length; i++)
+		{
+			index = getMin(array1.slice(i,end))+i;
+			// The index of the smallest number in the sliced array is found using the user-defined function getMin 
+			var temp = array1[index];
+			array1[index] = array1[i];
+			array1[i] = temp;
+			// The minimum valus from the sliced array is put at the beginning of the sliced array
+		}
+		// The above loop sorts the array by finding the minimum value and putting it at the beginning of the array
+		// After each iteration the process is repeated by skipping 1 index
+		return array1;
+	}
+}
+
