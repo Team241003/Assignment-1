@@ -1,0 +1,560 @@
+// This file contains some delegate classes for you to extend.
+
+
+
+function NewRoutePageControllerDelegate()
+{
+
+	// Save 'this' so we can refer to public attributes and methods.
+
+	var self = this;
+
+	var position = null;
+
+	var array_X = [];
+
+	var array_Y = [];
+	
+	var isStarted = null;
+	
+	var time = [];
+	
+	var loca = [];
+	
+	var acc = [];
+    
+    self.Routes = {
+					locations: [],
+					dateCreated : [],
+					accuracy : [],
+				}
+	
+	
+
+
+	// The MapPageController class controls the 'New Route' page.
+
+	// This class provides a couple of useful methods:
+
+	// displayMessage(message):
+
+	// Causes a short message string to be displayed on the
+
+	// page for a brief period. Useful for showing quick
+
+	// notifications to the user.
+
+	// panToLocation(latitude, longitude):
+
+	// Pans the map to the given latitude and longitude.
+
+	// repaintOverlay():
+
+	// Causes the map overlay to be redrawn, triggering a
+
+	// call to our mapPageDrawOverlay() method. You might
+
+	// wish to call this when you update information that
+
+	// is displayed on the canvas overlay.
+
+	// canvasPointFromLocation(latitude, longitude):
+
+	// Given a latitude and longitude, returns the
+
+	// corresponding point on the canvas overlay.
+
+	// The return value is an object with an 'x' and a 'y'
+
+	// property.
+
+	var newRoutePageController = null;
+
+    
+
+	// NOTE: You should not remove any of the five public methods below.
+
+	// This method is called by the MapPageController when the user
+
+	// has switched to the page and it has been intialised.
+
+	this.mapPageInitialisedWithOptions = function(controller, options)
+	{
+
+		console.log("Record Route ? mapPageInitialisedWithOptions");
+
+		newRoutePageController = controller;
+		
+		var options = {
+		  enableHighAccuracy: true,
+		  timeout: 5000,
+		  maximumAge: 0
+		};
+
+		
+function success(data) {
+		position= data.coords;
+		self.date = new Date;
+    
+    
+			
+			if (isStarted==0)
+			{
+				newRoutePageController.repaintOverlay();
+				newRoutePageController.panToLocation(position.latitude, position.longitude);
+				
+				
+				array_X.push(position.latitude);
+
+				array_Y.push(position.longitude);
+				self.Routes = 
+					{
+						locations: loca.push(array_X,array_Y),
+						dateCreated : time.push(self.date),
+						accuracy : acc.push(data.coords.accuracy),
+				    }
+				
+					
+			}
+            else if ( isStarted == 1)
+			{
+				
+				newRoutePageController.repaintOverlay();
+				newRoutePageController.panToLocation(position.latitude, position.longitude);
+				var jsonString = JSON.stringify(self.Routes);
+						document.write("JSON: " + jsonString + self.date.getTime());
+						localStorage.RoutesObject = jsonString;
+
+
+
+						var key = "route- " + self.date.getTime();
+
+						localStorage.setItem(key,jsonString);		
+				        newRoutePageController.displayMessage('Finished Recording')
+				        var total_time = 0;
+						for (var i = 0; i < time.length; i++)
+						{
+							total_time = total_time + time[i];
+						}
+						newRoutePageController.displayMessage(String(total_time));
+				isStarted = null;
+
+				
+				array_X=[];
+				array_Y=[];
+			}
+			
+				
+		};
+
+
+		function error(err) {
+		  console.warn('ERROR(' + err.code + '): ' + err.message);
+		};
+
+
+		navigator.geolocation.getCurrentPosition(success,error,options);
+		navigator.geolocation.watchPosition(success,error,options);
+
+
+
+	}
+
+	// The MapPageController calls this when loading its page.
+
+	// You should return an array of objects specifying buttons you
+
+	// would like to display at the bottom of the map, e.g.,
+
+	// {
+
+	// title: "Start",
+
+	// id: "startButton", (optional)
+
+	// }
+
+	// Note: This doesn't support an "onClick" property like in
+
+	// Assignment 1.
+
+	this.mapPageButtonControls = function()
+    {
+
+        console.log("Record Route - mapPageButtonControls");
+
+        return [
+
+        {
+
+            title: "Record Routes"
+
+
+
+        },
+
+        {
+
+            title: "Stop Record"
+
+
+        },
+
+          ];
+    }
+	
+
+	// The MapPageController calls this when user taps on a button
+
+	// specified by mapPageButtonControls(). The buttonIndex will
+
+	// be the index of the button in the aray you returned.
+
+	this.mapPageButtonTapped = function(buttonIndex)
+	{
+
+		console.log("Record Route ? mapPageButtonTapped(" + buttonIndex + ")");
+		
+
+		
+
+		if (buttonIndex == 0)
+
+		{
+			isStarted=0;
+			
+
+		}
+		else if (buttonIndex == 1)
+		{ 
+			isStarted=1;
+		}
+
+
+
+	}
+
+
+
+
+	// The MapPageController calls this when the canvas needs to be
+
+	// redrawn, such as due to the user panning or zooming the map.
+
+	// It clears the canvas before calling this method.
+
+	// 'context' is an HTML canvas element context. This is a
+
+	// transparent layer that sits above the map and is redrawn
+
+	// whenever the map is panned or zoomed. It can be used to
+
+	// draw annotations on the map or display other information.
+
+	this.mapPageDrawOverlay = function(context)
+	{
+
+		console.log("Record Route ? mapPageDrawOverlay");
+		
+        if (position == null)
+		{
+			return
+		}
+		
+		
+		if (isStarted == 0)
+		{
+		self.getCoord2 =newRoutePageController.canvasPointFromLocation(position.latitude, position.longitude);
+			context.fillStyle = "rgba(0, 0, 255, 0.2)";
+				context.lineWidth = 2.0;
+				context.strokeStyle = "rgba(0, 0, 255, 1)";
+
+				context.beginPath();
+
+				context.arc(self.getCoord2.x, self.getCoord2.y,10,0, 2*Math.PI);
+
+				context.fill();
+
+				context.stroke();
+			
+			for (var i=1; i<array_X.length ; ++i)
+			{
+				
+				self.getCoord =newRoutePageController.canvasPointFromLocation(array_X[i], array_Y[i]);
+				self.getCoord3 = newRoutePageController.canvasPointFromLocation(array_X[i-1],array_Y[i-1]);
+				context.fillStyle = "rgba(0, 0, 255, 0.2)";
+				context.lineWidth = 2.0;
+				context.strokeStyle = "rgba(0, 0, 255, 1)";
+
+				//context.beginPath();
+
+				//context.rect(self.getCoord.x, self.getCoord.y,5,5);
+
+				//context.fill();
+
+				//context.stroke();
+		
+			
+				context.beginPath();
+			
+				context.moveTo(self.getCoord3.x,self.getCoord3.y);
+			
+				context.lineTo(self.getCoord.x,self.getCoord.y);
+			
+				context.stroke();
+				
+			}
+		}
+		else
+		{
+		self.getCoord =newRoutePageController.canvasPointFromLocation(position.latitude, position.longitude);
+		context.fillStyle = "rgba(0, 0, 255, 0.2)";
+		context.lineWidth = 2.0;
+		context.strokeStyle = "rgba(0, 0, 255, 1)";
+
+		context.beginPath();
+
+		context.arc(self.getCoord.x, self.getCoord.y, 10, 0, 2*Math.PI);
+
+		context.fill();
+
+		context.stroke();
+		
+		
+		}
+		
+
+	}
+
+	// The MapPageController calls this to ask if it should return
+
+	// back to the start screen of the app when the user taps the
+
+	// done button. If you are not letting the user return, you
+
+	// should probably call displayMessage() to inform them why.
+
+	this.mapPageShouldReturnFromDoneButtonTap = function()
+	{
+
+		console.log("Record Route - mapPageShouldReturnFromDoneButtonTap");
+
+		// Let the user return.
+
+		return true;
+
+	}
+
+}
+
+
+function ViewRoutePageControllerDelegate()
+
+{
+
+// Save 'this' so we can refer to public attributes and methods.
+
+var self = this;
+
+// The MapPageController class controls the 'View Route' page.
+
+// This class provides a couple of useful methods:
+
+// displayMessage(message):
+
+// Causes a short message string to be displayed on the
+
+// page for a brief period. Useful for showing quick
+
+// notifications to the user.
+
+// panToLocation(latitude, longitude):
+
+// Pans the map to the given latitude and longitude.
+
+// repaintOverlay():
+
+// Causes the map overlay to be redrawn, triggering a
+
+// call to our mapPageDrawOverlay() method. You might
+
+// wish to call this when you update information that
+
+// is displayed on the canvas overlay.
+
+// canvasPointFromLocation(latitude, longitude):
+
+// Given a latitude and longitude, returns the
+
+// corresponding point on the canvas overlay.
+
+// The return value is an object with an 'x' and a 'y'
+
+// property.
+
+var viewRoutePageController = null;
+
+// The originally recorded route being displayed by the viewRoute page.
+
+var originalRoute;
+
+// NOTE: You should not remove any of the five public methods below.
+
+// This method is called by the MapPageController when the user
+
+// has switched to the page and it has been intialised. If the
+
+// MapPageController is displaying an existing route, then options
+
+// will contain a 'routeIndex' property which gives the index of
+
+// the selected route in the Routes array.
+
+this.mapPageInitialisedWithOptions = function(controller, options)
+
+{
+
+		console.log("View Route ? mapPageInitialisedWithOptions");
+
+		viewRoutePageController = controller;
+
+		originalRoute = Routes[options.routeIndex];
+		
+		viewRoutePageController.repaintOverlay();
+	    
+	    
+		
+		
+		
+
+
+}
+
+// The MapPageController calls this when loading its page.
+
+// You should return an array of objects specifying buttons you
+
+// would like to display at the bottom of the map, e.g.,
+
+// {
+
+// title: "Start",
+
+// id: "startButton", (optional)
+
+// }
+
+// Note: This doesn't support an "onClick" property like in
+
+// Assignment 1.
+
+this.mapPageButtonControls = function()
+
+{
+
+	console.log("View Route ? mapPageButtonControls");
+
+	return [
+			
+		{
+			
+			title:"Calculate Distance",
+		
+		},
+	      ];
+
+}
+
+// The MapPageController calls this when user taps on a button
+
+// specified by mapPageButtonControls(). The buttonIndex will
+
+// be the index of the button in the array you returned.
+
+this.mapPageButtonTapped = function(buttonIndex)
+
+{
+
+	console.log("View Route ? mapPageButtonTapped(" + buttonIndex + ")");
+	
+
+}
+
+// The MapPageController calls this when the canvas needs to be
+
+// redrawn, such as due to the user panning or zooming the map.
+
+// It clears the canvas before calling this method.
+
+// 'context' is an HTML canvas element context. This is a
+
+// transparent layer that sits above the map and is redrawn
+
+// whenever the map is panned or zoomed. It can be used to
+
+// draw annotations on the map or display other information.
+
+this.mapPageDrawOverlay = function(context)
+
+{
+
+	console.log("View Route - mapPageDrawOverlay");
+	var originalRoute = JSON.parse(localStorage.RoutesObject);
+	var coord_X = originalRoute.locations[0];
+	
+	var coord_Y = originalRoute.locations[1];
+	
+	for (var j=1; j <= coord_X.length; ++j)
+	{
+		context.fillStyle = "rgba(0, 0, 255, 0.2)";
+		context.lineWidth = 2.0;
+		context.strokeStyle = "rgba(0, 0, 255, 1)";
+
+
+		context.beginPath();
+
+		context.moveTo(coord_X[j-1],coord_Y[j-1]);
+
+		context.lineTo(coord_X[j],coord_Y[j]);
+
+		context.stroke();
+
+	}
+	
+
+}
+
+// The MapPageController calls this to ask if it should return
+
+// back to the start screen of the app when the user taps the
+
+// done button. If you are not letting the user return, you
+
+// should probably call displayMessage() to inform them why.
+
+this.mapPageShouldReturnFromDoneButtonTap = function()
+
+{
+
+console.log("viewPage mapShouldReturnFromDoneButtonTap");
+
+return true;
+}
+}
+/*var jsonString = JSON.stringify(self.Routes);
+						console.log("JSON: " + jsonString + date.getTime());
+						localStorage.RoutesObject = jsonString;
+
+
+
+						var key = "route- " + self.Routes.dateCreated;
+
+						localStorage.setItem(key,jsonString);		
+				        newRoutePageController.displayMessage('Finished Recording')
+				        var total_time = 0;
+						for (var i = 0; i < time.length; i++)
+						{
+							total_time = total_time + time[i];
+						}
+						newRoutePageController.displayMessage(String(total_time));
+*/
