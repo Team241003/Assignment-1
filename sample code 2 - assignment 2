@@ -1,0 +1,536 @@
+// This file contains some delegate classes for you to extend.
+
+//global variables for data storage and constants
+	var isTracking = true; //are we currently tracking the user
+	var route = [];	//task 3 - array for storing user GPS positions, time and accuracy values at each recorded location
+    var intervalTime = 1; //update and store user location in seconds
+    var allowedAccuracy = 0; //allow up to this many meters of inaccuracy, zero means any level of accuracy is OK
+    var simplifyDistance = 40; //distance threshold to remove points that are close together for simplify function
+
+function NewRoutePageControllerDelegate()
+{
+    // Save 'this' so we can refer to public attributes and methods.
+    var self = this;
+    
+    // The MapPageController class controls the 'New Route' page.
+    // This class provides a couple of useful methods:
+    //     displayMessage(message):
+    //         Causes a short message string to be displayed on the
+    //         page for a brief period.  Useful for showing quick
+    //         notifications to the user.
+    //     panToLocation(latitude, longitude):
+    //         Pans the map to the given latitude and longitude.
+    //     repaintOverlay():
+    //         Causes the map overlay to be redrawn, triggering a 
+    //         call to our mapPageDrawOverlay() method.  You might
+    //         wish to call this when you update information that 
+    //         is displayed on the canvas overlay.
+    //     canvasPointFromLocation(latitude, longitude):
+    //         Given a latitude and longitude, returns the
+    //         corresponding point on the canvas overlay.
+    //         The return value is an object with an 'x' and a 'y'
+    //         property.
+    var newRoutePageController = null;
+    
+    //Record the last reading
+    var lastCoordinate = null;
+
+    // NOTE: You should not remove any of the five public methods below.
+
+    // This method is called by the MapPageController when the user
+    // has switched to the page and it has been intialised.
+    this.mapPageInitialisedWithOptions = function(controller, options)
+    {
+        console.log("Record Route - mapPageInitialisedWithOptions");
+        newRoutePageController = controller;        
+        
+        route = []; //Location list initially empty
+        isTracking = false; //Initially not tracking until [Start] pressed
+        newRoutePageController.repaintOverlay(); //Clear the map
+    }
+
+    // The MapPageController calls this when loading its page.
+    // You should return an array of objects specifying buttons you
+    // would like to display at the bottom of the map, e.g.,
+    //    {
+    //        title:   "Start",
+    //        id:      "startButton",  (optional)
+    //    }
+    // Note: This doesn't support an "onClick" property like in
+    // Assignment 1.
+
+    //Task 2 - Add a button to the app that begins or stops location tracking. 
+    this.mapPageButtonControls = function()
+    {
+        console.log("Record Route - mapPageButtonControls");
+        return [{
+	    	title: "Start",
+	    	id: "startButton"
+        },{
+	    	title: "Stop",
+	    	id: "stopButton"
+        },{
+        	title: "Restart",
+        	id: "restartButton"
+        }];
+    }
+
+    // The MapPageController calls this when user taps on a button
+    // specified by mapPageButtonControls().  The buttonIndex will
+    // be the index of the button in the aray you returned.
+
+    //Task 2 - Buttons for the user actions
+    this.mapPageButtonTapped = function(buttonIndex)
+    {
+        console.log("Record Route - mapPageButtonTapped(" + buttonIndex + ")");
+        
+        if (buttonIndex == 0) { //Start
+            //only record points if accuracy is ok, if accuracy is set to zero record anyway
+        	if ((newRoutePageController.lastCoordinate == null) || (allowedAccuracy > 0 && newRoutePageController.lastCoordinate.accuracy >= allowedAccuracy)) {
+        		newRoutePageController.displayMessage('GPS inaccurate - please go to a better position with a clear view of the sky');
+        	} else {
+        		isTracking = true;
+        	}
+        	
+        } else if (buttonIndex == 1) { //Stop
+        	
+        	isTracking = false;
+        	
+        } else if (buttonIndex == 2) { //Restart
+        	
+        	//Clear the stored route
+        	route = [];
+            //Refresh the overlay
+            newRoutePageController.repaintOverlay();
+            
+        }
+        
+    }
+
+    // The MapPageController calls this when the canvas needs to be
+    // redrawn, such as due to the user panning or zooming the map.
+    // It clears the canvas before calling this method.
+    // 'context' is an HTML canvas element context.  This is a 
+    // transparent layer that sits above the map and is redrawn 
+    // whenever the map is panned or zoomed. It can be used to 
+	// draw annotations on the map or display other information.
+
+	// Task 1 - draw current location on map, change colour/size based on accuracy value 
+	// Task 2 - show each location in the route array in a breadcumb fashion
+    // Task 3 - draw the route onto the screen as a series of connected line segments 
+    this.mapPageDrawOverlay = function(context)
+    {   
+        console.log("Record Route - mapPageDrawOverlay");
+
+		//Draw the accuracy indicator at the current location
+        if (newRoutePageController.lastCoordinate != null)
+        {
+	        var point = newRoutePageController.canvasPointFromLocation(newRoutePageController.lastCoordinate.latitude, newRoutePageController.lastCoordinate.longitude);
+	        
+	        //Determine the metre-per-pixel scale to display the appropriate accuracy as provided in the assignment FAQ
+	        var zoomLevel = newRoutePageController.getZoom();
+	        var earthCurcumference = 6372.7982;
+	        var scale = (earthCurcumference * Math.cos(newRoutePageController.lastCoordinate.latitude) / Math.pow(2, (zoomLevel + 8))) * 1000;
+	        var accuracyRadius = Math.round(newRoutePageController.lastCoordinate.accuracy / scale);
+	        
+	        context.beginPath();
+	        context.arc(point.x, point.y, accuracyRadius, 0, 2*Math.PI);
+	        context.fillStyle = "rgba(0, 0, 255, 0.3)";
+	        context.fill();
+	        context.lineWidth = 2;
+	        context.strokeStyle = "rgba(0, 0, 255, 1)";
+	        context.stroke();
+    	}
+        
+        //if tracking, draw all saved route, not the first one
+		if (route.length > 0)
+		{
+            //Draw an indicator at the starting position
+            point = newRoutePageController.canvasPointFromLocation(route[0].latitude, route[0].longitude);
+            context.beginPath();
+            context.fillStyle = "rgba(255, 255, 0, 0.5)";
+            context.strokeStyle = "rgba(200, 200, 0, 1)";
+            context.moveTo(point.x, point.y);
+        	context.lineTo(point.x - 10, point.y - 20);
+        	context.lineTo(point.x + 10, point.y - 20);
+            context.fill();
+            context.closePath();
+			
+            //move to first point for path drawing
+            var point = newRoutePageController.canvasPointFromLocation(route[0].latitude, route[0].longitude);
+            context.beginPath();
+            context.moveTo(point.x, point.y)
+			for (i = 0; i < route.length; ++i) {
+				point = newRoutePageController.canvasPointFromLocation(route[i].latitude, route[i].longitude);
+	            context.lineWidth = 2;
+                context.strokeStyle = "rgba(255, 0, 0, 1)";
+                context.lineTo(point.x, point.y)
+                context.moveTo(point.x, point.y)
+			}
+            context.stroke();
+            context.closePath();
+
+            //Draw the point indicators
+            context.beginPath();
+			for (i = 0; i < route.length; ++i) {
+				point = newRoutePageController.canvasPointFromLocation(route[i].latitude, route[i].longitude);
+	            context.moveTo(point.x, point.y)
+                
+                //Draw a point at each reading
+                context.beginPath();
+                context.strokeStyle = "rgba(0, 0, 255, 1)";
+                context.fillStyle = "rgba(0, 0, 255, 0.5)";
+                context.arc(point.x, point.y, 2, 0, 2*Math.PI);
+                context.stroke();
+                context.fill();
+                context.closePath();
+			}
+                        
+            //Draw an indicator at the finish position
+            point = newRoutePageController.canvasPointFromLocation(route[(route.length-1)].latitude, route[(route.length-1)].longitude);
+            context.beginPath();
+            context.fillStyle = "rgba(0, 255, 0, 0.5)";
+            context.strokeStyle = "rgba(0, 255, 0, 1)";
+            context.moveTo(point.x, point.y);
+        	context.lineTo(point.x - 10, point.y - 20);
+        	context.lineTo(point.x + 10, point.y - 20);
+            context.fill();
+            context.closePath();
+
+        }
+    }
+    
+    // The MapPageController calls this to ask if it should return 
+    // back to the start screen of the app when the user taps the 
+    // done button.  If you are not letting the user return, you 
+    // should probably call displayMessage() to inform them why. 
+    this.mapPageShouldReturnFromDoneButtonTap = function()
+    {
+        console.log("Record Route - mapPageShouldReturnFromDoneButtonTap");
+        // Let the user return.
+
+        //Check if the route has been saved
+        if (isTracking == true) {
+        	newRoutePageController.displayMessage('Please stop tracking before exiting');
+        	return false;
+        }
+
+        // stop reading user's position and stop recording points
+        clearInterval(updateInterval)
+
+        // task 4 - if there is a route then save it to Local Storage when the user completes it using JSON.stringify()
+        // task 4 - add dateCreated property to use as the label for the route. 
+		if (route.length > 0)
+		{
+            //Set up the route object
+            var now = new Date();
+        	var store = {
+    			dateCreated: now.toString(),
+    			locations: route
+        	};
+        	//Store the route
+        	localStorage.setItem('route' + localStorage.length, JSON.stringify(store));
+      	}
+
+        return true;
+    }
+    
+	// Task 1 - read the user's position at regular intervals and pan to their location on the map
+	// Task 2/3 - store each location in the Route object. 
+	var updateInterval = setInterval(function () {
+		navigator.geolocation.getCurrentPosition(
+			function success(pos) {
+				
+				//Store the current accuracy from the gps
+				newRoutePageController.lastCoordinate = pos.coords;
+				
+                if (isTracking) {
+                	
+                	//Current location structure to store
+                	var currentLocation = {
+                    		longitude: pos.coords.longitude,
+                    		latitude: pos.coords.latitude,
+                    		accuracy: pos.coords.accuracy,
+                    		time: pos.timestamp
+                    	};
+                	
+                	//Add the current position to the route
+                	route.push(currentLocation);
+                    
+                }
+
+                //pan to the last location
+                newRoutePageController.panToLocation(pos.coords.latitude, pos.coords.longitude);
+
+                //Refresh the layer
+                newRoutePageController.repaintOverlay();
+                
+       		},
+       		null, null); 
+		}, intervalTime * 1000);	//set update timing
+	}
+
+
+function ViewRoutePageControllerDelegate()
+{
+    // Save 'this' so we can refer to public attributes and methods.
+    var self = this;
+    
+    // The MapPageController class controls the 'View Route' page.
+    // This class provides a couple of useful methods:
+    //     displayMessage(message):
+    //         Causes a short message string to be displayed on the
+    //         page for a brief period.  Useful for showing quick
+    //         notifications to the user.
+    //     panToLocation(latitude, longitude):
+    //         Pans the map to the given latitude and longitude.
+    //     repaintOverlay():
+    //         Causes the map overlay to be redrawn, triggering a 
+    //         call to our mapPageDrawOverlay() method.  You might
+    //         wish to call this when you update information that 
+    //         is displayed on the canvas overlay.
+    //     canvasPointFromLocation(latitude, longitude):
+    //         Given a latitude and longitude, returns the
+    //         corresponding point on the canvas overlay.
+    //         The return value is an object with an 'x' and a 'y'
+    //         property.
+    var viewRoutePageController = null;
+    
+    // The originally recorded route being displayed by the viewRoute page.
+    var originalRoute;
+    
+    // The type of route to display - original, simplified or optimal
+    var routeDisplay = 'original';
+
+    // NOTE: You should not remove any of the five public methods below.
+    
+    // This method is called by the MapPageController when the user
+    // has switched to the page and it has been intialised.  If the
+    // MapPageController is displaying an existing route, then options
+    // will contain a 'routeIndex' property which gives the index of 
+    // the selected route in the Routes array.
+    this.mapPageInitialisedWithOptions = function(controller, options)
+    {
+        console.log("View Route - mapPageInitialisedWithOptions");
+        viewRoutePageController = controller;
+        originalRoute = Routes[options.routeIndex].locations;
+        
+        //Move the map to the last location recorded
+        viewRoutePageController.panToLocation(originalRoute[originalRoute.length - 1].latitude, originalRoute[originalRoute.length - 1].longitude);
+    }
+
+    // The MapPageController calls this when loading its page.
+    // You should return an array of objects specifying buttons you
+    // would like to display at the bottom of the map, e.g.,
+    //    {
+    //        title:   "Start",
+    //        id:      "startButton",  (optional)
+    //    }
+    // Note: This doesn't support an "onClick" property like in
+    // Assignment 1.
+    this.mapPageButtonControls = function()
+    {
+        console.log("View Route - mapPageButtonControls");
+        return [{
+        	title: "Statistics",
+        	id: "statisticsButton"
+        },{
+        	title: "Raw",
+        	id: "rawButton"
+        },{
+        	title: "Simplified",
+        	id: "simplifiedButton"
+        },{
+        	title: "Optimal",
+        	id: "optimalButton"
+        }];
+    }
+    
+    // The MapPageController calls this when user taps on a button
+    // specified by mapPageButtonControls().  The buttonIndex will
+    // be the index of the button in the aray you returned.
+    this.mapPageButtonTapped = function(buttonIndex)
+    {
+        console.log("View Route - mapPageButtonTapped(" + buttonIndex + ")");
+        
+        if (buttonIndex == 0) { //Statistics
+      	
+            //task 5 - calculate the distance of two locations from each other. Loop over the locations in the route
+            // to determine the total distance. 
+            //task 5 - use the time values from the first and last recorded locations in the route, along
+            // with the computed distance, to determine and display average walking speed for the route.
+        	var totalDistance = 0;
+	    	if (originalRoute.length > 1) {
+		    	for(var i=1; i<originalRoute.length; i++) {
+		    		totalDistance += this.getDistance(originalRoute[i-1].latitude, originalRoute[i-1].longitude, originalRoute[i].latitude, originalRoute[i].longitude); 
+		    	}
+				totalDistance = totalDistance.toFixed(0); // round to a whole number
+
+	    	}
+    	
+	    	//Calculate the time between the first and last points (convert from milliseconds)
+	    	var totalTime = (originalRoute[(originalRoute.length-1)].time - originalRoute[0].time) / 1000;
+	    	totalTime = totalTime.toFixed(2); //Round to 2 decimal places
+	    	
+	    	//Speed is number number of metres over time
+	    	var walkingSpeed = totalDistance / totalTime;
+			walkingSpeed = walkingSpeed.toFixed(2); //round to 2 decimal places
+	    	
+	    	//Display the statistics
+	    	viewRoutePageController.displayMessage("Distance: " + totalDistance + "m, Time: " + totalTime + "s, Speed: " + walkingSpeed + "m/s");
+        	
+        } else if (buttonIndex == 1) { //Raw route
+        	
+        	viewRoutePageController.routeDisplay = 'original';
+        	viewRoutePageController.repaintOverlay(); //Clear the map
+        	
+        } else if (buttonIndex == 2) { //Simplified route
+        	
+        	viewRoutePageController.routeDisplay = 'simplified';
+        	viewRoutePageController.repaintOverlay(); //Clear the map
+        	
+        } else if (buttonIndex == 3) { //Optimal route
+        	
+        	viewRoutePageController.routeDisplay = 'optimal';
+        	viewRoutePageController.repaintOverlay(); //Clear the map
+        	
+        }
+        
+    }
+
+    
+    //Returns the distance in metres between two latitude/longitude points
+    this.getDistance = function(lat1, lon1, lat2, lon2) {
+    	var R = 6371; //Radius of the earth in km
+		var dLat = (lat2-lat1) * Math.PI / 180;
+		var dLon = (lon2-lon1) * Math.PI / 180;
+		var a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+		 		Math.cos(lat1 * Math.PI / 180 ) * Math.cos(lat2 * Math.PI / 180 ) *
+		 		Math.sin(dLon/2) * Math.sin(dLon/2);
+		var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+		var d = (R * c) * 1000; //Return in metres
+	return d;
+    }
+    
+    //task 6 - Takes a route list and converts it into a simplified route, remove points based on distance apart
+    this.simplifiedRoute = function(route) {
+
+        simpleRoute = [];
+        simpleRoute.push(originalRoute[0])
+        if (originalRoute.length > 1) {
+		   	for(var i=1; i<originalRoute.length-1; i++) {
+		   		if (this.getDistance(originalRoute[i-1].latitude, originalRoute[i-1].longitude, originalRoute[i].latitude, originalRoute[i].longitude) > simplifyDistance) {
+                    //add point to the route
+                    simpleRoute.push(originalRoute[i])
+		   		}
+		   	}
+	    }
+    	return simpleRoute;
+    }
+
+    //Takes a route list and convert it into an optimal route
+    this.optimalRoute = function(route) {
+/*    	
+Do this if we have time
+Step 7: Checking validity of routes
+look for intersections in the path and removes the unnecessary portions, returning the
+optimal Route. segmentsIntersectionPoint(a1, a2, b1, b2) function two line segments a1a2
+and b1b2 returns the intersection location if the two line
+segments intersect, or null otherwise.
+*/    	
+    	return route;
+    }
+    
+    // The MapPageController calls this when the canvas needs to be
+    // redrawn, such as due to the user panning or zooming the map.
+    // It clears the canvas before calling this method.
+    // 'context' is an HTML canvas element context.  This is a 
+    // transparent layer that sits above the map and is redrawn 
+    // whenever the map is panned or zoomed. It can be used to 
+	// draw annotations on the map or display other information.
+    this.mapPageDrawOverlay = function(context)
+    {   
+        console.log("View Route - mapPageDrawOverlay");
+        
+        //Start with the original route
+        var route = originalRoute;
+        if (viewRoutePageController.routeDisplay == 'original') {
+        	//Do nothing
+        } else if (viewRoutePageController.routeDisplay == 'simplified') {
+        	//Calculate a simplified route
+        	route = this.simplifiedRoute(route);
+        } else if (viewRoutePageController.routeDisplay == 'optimal') {
+        	//Calculate an optimised route
+        	route = this.optimalRoute(route);
+        }
+        
+        
+        //if tracking, draw all saved route, not the first one
+		if (originalRoute.length > 0)
+		{
+            //move to first point for path drawing
+            var point = viewRoutePageController.canvasPointFromLocation(route[0].latitude, route[0].longitude);
+            context.beginPath();
+            context.moveTo(point.x, point.y)
+			for (i = 0; i < route.length; ++i) {
+				point = viewRoutePageController.canvasPointFromLocation(route[i].latitude, route[i].longitude);
+	            context.lineWidth = 2;
+                context.strokeStyle = "rgba(255, 0, 0, 1)";
+                context.lineTo(point.x, point.y)
+                context.moveTo(point.x, point.y)
+			}
+            context.stroke();
+            context.closePath();
+
+            //Draw the point indicators
+            context.beginPath();
+			for (i = 0; i < route.length; ++i) {
+				point = viewRoutePageController.canvasPointFromLocation(route[i].latitude, route[i].longitude);
+	            context.moveTo(point.x, point.y)
+                
+                //Draw a point at each reading
+                context.beginPath();
+                context.strokeStyle = "rgba(0, 0, 255, 1)";
+                context.fillStyle = "rgba(0, 0, 255, 0.5)";
+                context.arc(point.x, point.y, 2, 0, 2*Math.PI);
+                context.stroke();
+                context.fill();
+                context.closePath();
+			}
+                        
+            //Draw an indicator at the starting position
+            point = viewRoutePageController.canvasPointFromLocation(route[0].latitude, route[0].longitude);
+            context.beginPath();
+            context.fillStyle = "rgba(255, 255, 0, 0.5)";
+            context.strokeStyle = "rgba(200, 200, 0, 1)";
+            context.moveTo(point.x, point.y);
+        	context.lineTo(point.x - 10, point.y - 20);
+        	context.lineTo(point.x + 10, point.y - 20);
+            context.fill();
+            context.closePath();
+
+            //Draw an indicator at the finish position
+            point = viewRoutePageController.canvasPointFromLocation(route[(route.length-1)].latitude, route[(route.length-1)].longitude);
+            context.beginPath();
+            context.fillStyle = "rgba(0, 255, 0, 0.5)";
+            context.strokeStyle = "rgba(0, 255, 0, 1)";
+            context.moveTo(point.x, point.y);
+        	context.lineTo(point.x - 10, point.y - 20);
+        	context.lineTo(point.x + 10, point.y - 20);
+            context.fill();
+            context.closePath();
+			
+        }
+        
+    }
+    
+    // The MapPageController calls this to ask if it should return 
+    // back to the start screen of the app when the user taps the 
+    // done button.  If you are not letting the user return, you 
+    // should probably call displayMessage() to inform them why. 
+    this.mapPageShouldReturnFromDoneButtonTap = function()
+    {
+        console.log("viewPage mapShouldReturnFromDoneButtonTap");
+        return true;
+    }
+}
