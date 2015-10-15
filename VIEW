@@ -1,0 +1,44 @@
+<!-- Always shows a header, even in smaller screens. -->
+<link rel="stylesheet" href="https://storage.googleapis.com/code.getmdl.io/1.0.5/material.indigo-pink.min.css">
+<script src="https://storage.googleapis.com/code.getmdl.io/1.0.5/material.min.js"></script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <style type="text/css">
+      html, body { height: 100%; margin: 0; padding: 0; }
+      #map { height: 100%; }
+    </style>
+<div class="mdl-layout mdl-js-layout mdl-layout--fixed-header">
+  <header class="mdl-layout__header">
+    <div class="mdl-layout__header-row">
+      <!-- Title -->
+      <span class="mdl-layout-title">DO IT!                   - a run tracking application -                   View</span>
+      <!-- Add spacer, to align navigation to the right -->
+      <div class="mdl-layout-spacer"></div>
+      <!-- Navigation. We hide it in small screens. -->
+      <nav class="mdl-navigation mdl-layout--large-screen-only">
+                <a class="mdl-navigation__link" href="https://eng1003.eng.monash.edu/wzjiy/index.html">Home</a>
+				<a class="mdl-navigation__link" href="https://eng1003.eng.monash.edu/wzjiy/view.html">View</a>
+				<a class="mdl-navigation__link" href="https://eng1003.eng.monash.edu/wzjiy/record.html">Record</a>
+      </nav>
+    </div>
+  </header>
+  <div class="mdl-layout__drawer">
+    <span class="mdl-layout-title">Record</span>
+    <nav class="mdl-navigation">
+                <a class="mdl-navigation__link" href="https://eng1003.eng.monash.edu/wzjiy/index.html">Home</a>
+				<a class="mdl-navigation__link" href="https://eng1003.eng.monash.edu/wzjiy/view.html">View</a>
+				<a class="mdl-navigation__link" href="https://eng1003.eng.monash.edu/wzjiy/record.html">Record</a>
+    </nav>
+  </div>
+
+
+
+
+  <main class="mdl-layout__content">
+    <div class="page-content">
+
+
+
+
+</div>
+  </main>
+</div>
